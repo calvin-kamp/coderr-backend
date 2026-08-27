@@ -1,24 +1,19 @@
 from rest_framework import status
 from rest_framework.authtoken.models import Token
-from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from accounts.models import User
-
-from .serializers import RegisterSerializer
+from .serializers import LoginSerializer, RegisterSerializer
 
 
-class RegisterView(CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
+class RegisterView(APIView):
     permission_classes = [AllowAny]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-
         token, _ = Token.objects.get_or_create(user=user)
 
         return Response(
@@ -26,7 +21,27 @@ class RegisterView(CreateAPIView):
                 "token": token.key,
                 "username": user.username,
                 "email": user.email,
-                "user_id": user.pk,
+                "type": user.type,
+                "user_id": user.id,
             },
             status=status.HTTP_201_CREATED,
+        )
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response(
+            {
+                "token": token.key,
+                "username": user.username,
+                "user_id": user.id,
+            },
+            status=status.HTTP_200_OK,
         )
