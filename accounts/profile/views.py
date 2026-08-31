@@ -1,9 +1,9 @@
-from rest_framework import viewsets
-from rest_framework.generics import ListAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
 
-from accounts.models import Profile
+from accounts.models import Profile, User
 
+from .permissions import IsProfileOwnerOrReadOnly
 from .serializers import (
     BusinessProfileSerializer,
     CustomerProfileSerializer,
@@ -11,22 +11,28 @@ from .serializers import (
 )
 
 
-class ProfileViewSet(viewsets.ModelViewSet):
-    queryset = Profile.objects.all()
+class ProfileDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Profile.objects.select_related("user")
     serializer_class = ProfileSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated, IsProfileOwnerOrReadOnly]
+    lookup_field = "user_id"
+    lookup_url_kwarg = "pk"
+    http_method_names = ["get", "patch", "head", "options"]
 
 
-class BusinessListView(ListAPIView):
-    queryset = Profile.objects.filter(type="business")
+class BusinessProfileListView(generics.ListAPIView):
+    queryset = Profile.objects.select_related("user").filter(
+        user__type=User.RoleChoices.BUSINESS
+    )
     serializer_class = BusinessProfileSerializer
-    permission_classes = [AllowAny]
-
-    def get_queryset(self):
-        return super().get_queryset()
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
 
 
-class CustomerListView(ListAPIView):
-    queryset = Profile.objects.filter(type="customer")
+class CustomerProfileListView(generics.ListAPIView):
+    queryset = Profile.objects.select_related("user").filter(
+        user__type=User.RoleChoices.CUSTOMER
+    )
     serializer_class = CustomerProfileSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
