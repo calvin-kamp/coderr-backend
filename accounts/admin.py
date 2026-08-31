@@ -1,21 +1,14 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User
+from .models import Profile, User
 
 
-class UserAdmin(UserAdmin):
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
     fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    "username",
-                    "password",
-                )
-            },
-        ),
-        ("Personal info", {"fields": ("email", "type")}),
+        (None, {"fields": ("username", "password")}),
+        ("Personal info", {"fields": ("first_name", "last_name", "email", "type")}),
         (
             "Permissions",
             {
@@ -25,7 +18,7 @@ class UserAdmin(UserAdmin):
                     "is_superuser",
                     "groups",
                     "user_permissions",
-                ),
+                )
             },
         ),
         ("Important dates", {"fields": ("last_login", "date_joined")}),
@@ -36,29 +29,18 @@ class UserAdmin(UserAdmin):
             None,
             {
                 "classes": ("wide",),
-                "fields": ("username", "usable_password", "password1", "password2"),
+                "fields": ("username", "email", "type", "password1", "password2"),
             },
         ),
     )
 
-    list_display = (
-        "username",
-        "email",
-        "is_staff",
-    )
-
-    list_filter = (
-        "is_staff",
-        "is_superuser",
-        "is_active",
-        "groups",
-    )
-
-    search_fields = (
-        "username",
-        "email",
-        "type",
-    )
+    list_display = ("username", "email", "type", "is_staff")
+    list_filter = ("type", "is_staff", "is_superuser", "is_active", "groups")
+    search_fields = ("username", "email")
+    ordering = ("username",)
 
 
-admin.site.register(User, UserAdmin)
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "location", "tel", "created_at")
+    search_fields = ("user__username", "location")

@@ -1,35 +1,44 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.utils import timezone
 
 
 class User(AbstractUser):
     class RoleChoices(models.TextChoices):
-        BUSINESS = "business"
-        CUSTOMER = "customer"
+        BUSINESS = "business", "Business"
+        CUSTOMER = "customer", "Customer"
 
-    type = models.TextField(choices=RoleChoices, max_length=8)
-    email = models.EmailField(unique=True, blank=False)
+    type = models.CharField(max_length=8, choices=RoleChoices.choices)
+    email = models.EmailField(unique=True)
 
     REQUIRED_FIELDS = ["email", "type"]
+
+    @property
+    def is_business(self):
+        return self.type == self.RoleChoices.BUSINESS
+
+    @property
+    def is_customer(self):
+        return self.type == self.RoleChoices.CUSTOMER
 
 
 class Profile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
-        related_name="user",
+        related_name="profile",
         on_delete=models.CASCADE,
     )
 
-    first_name = models.CharField(blank=True, default="")
-    last_name = models.CharField(blank=True, default="")
-    location = models.CharField(blank=True, default="")
-    tel = models.CharField(blank=True, default="")
-    description = models.CharField(blank=True, default="")
-    working_hours = models.CharField(blank=True, default="")
+    file = models.FileField(upload_to="profiles/", blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, default="")
+    tel = models.CharField(max_length=50, blank=True, default="")
+    description = models.TextField(blank=True, default="")
+    working_hours = models.CharField(max_length=50, blank=True, default="")
 
-    type = models.TextField()
-    email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    created_at = models.DateTimeField(auto_now_add=timezone.now)
+    class Meta:
+        ordering = ["user_id"]
+
+    def __str__(self):
+        return f"{self.user.username} ({self.user.type})"
