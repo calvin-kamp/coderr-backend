@@ -1,7 +1,8 @@
 from django.contrib.auth import authenticate
+from django.db import transaction
 from rest_framework import serializers
 
-from accounts.models import User
+from accounts.models import Profile, User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -10,15 +11,13 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
 
-        fields = ("id", "username", "email", "password", "repeated_password", "type")
+        fields = ("id", "username", "email", "password", "repeated_password")
 
         extra_kwargs = {
             "password": {
                 "write_only": True,
             },
-            "type": {
-                "required": True,
-            },
+            "type": {"required": True, "write_only": True},
         }
 
     def validate(self, attrs):
@@ -31,11 +30,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
+        type = validated_data.pop("type")
         validated_data.pop("repeated_password")
 
-        user = User.objects.create(**validated_data)
-        user.set_password(password)
-        user.save()
+        with transaction.atomic():
+            user = User.objects.create(**validated_data)
+            user.set_password(password)
+            user.save()
+
+            Profile.objects.create(user=user, email=user.email, type=type)
 
         return user
 
