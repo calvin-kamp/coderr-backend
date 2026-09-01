@@ -1,3 +1,9 @@
+"""Tests for the base info endpoint.
+
+Covers that the route is public, that it answers with zeros on an empty
+database, and that the four counters aggregate correctly.
+"""
+
 from django.urls import reverse_lazy
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -9,9 +15,12 @@ from reviews.models import Review
 
 
 class BaseInfoTests(APITestCase):
+    """GET /api/base-info/."""
+
     url = reverse_lazy("base-info")
 
     def test_is_public(self):
+        """The endpoint answers without authentication."""
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -26,6 +35,7 @@ class BaseInfoTests(APITestCase):
         )
 
     def test_returns_zero_values_on_empty_database(self):
+        """Returns zero values on empty database."""
         response = self.client.get(self.url)
 
         self.assertEqual(response.data["review_count"], 0)
@@ -34,6 +44,7 @@ class BaseInfoTests(APITestCase):
         self.assertEqual(response.data["offer_count"], 0)
 
     def test_aggregates_platform_statistics(self):
+        """The four counters aggregate across the apps."""
         business = create_user("biz", User.RoleChoices.BUSINESS)
         other_business = create_user("biz2", User.RoleChoices.BUSINESS)
         customer = create_user("cust", User.RoleChoices.CUSTOMER)

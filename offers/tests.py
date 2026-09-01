@@ -1,3 +1,13 @@
+"""Tests for the offer endpoints.
+
+Covers the list with all of its query parameters, creation including the
+three-detail rule, the read routes with their hyperlinks, and the ownership
+rules for update and delete.
+
+``detail_payload`` and ``create_offer`` are also imported by the order and base
+info tests, which need offers without testing them.
+"""
+
 from django.urls import reverse, reverse_lazy
 from rest_framework import status
 
@@ -7,6 +17,7 @@ from offers.models import Offer, OfferDetail
 
 
 def detail_payload(offer_type, price, delivery_time, revisions=1):
+    """Build one package tier for an offer request body."""
     return {
         "title": f"{offer_type.capitalize()} Design",
         "revisions": revisions,
@@ -17,9 +28,8 @@ def detail_payload(offer_type, price, delivery_time, revisions=1):
     }
 
 
-def create_offer(
-    user, title="Grafikdesign-Paket", prices=(100, 200, 500), days=(5, 7, 10)
-):
+def create_offer(user, title="Grafikdesign-Paket", prices=(100, 200, 500), days=(5, 7, 10)):
+    """Create an offer with its three package tiers directly in the database."""
     offer = Offer.objects.create(user=user, title=title, description="Beschreibung")
     for offer_type, price, day in zip(("basic", "standard", "premium"), prices, days):
         OfferDetail.objects.create(
@@ -35,9 +45,12 @@ def create_offer(
 
 
 class OfferListTests(BaseAPITestCase):
+    """GET /api/offers/ including filters, search, ordering and pagination."""
+
     url = reverse_lazy("offer-list")
 
     def setUp(self):
+        """Create the users and offers the test methods work on."""
         self.business = create_user("biz", User.RoleChoices.BUSINESS)
         self.other_business = create_user("biz2", User.RoleChoices.BUSINESS)
         self.customer = create_user("cust", User.RoleChoices.CUSTOMER)
@@ -47,11 +60,14 @@ class OfferListTests(BaseAPITestCase):
         )
 
     def test_returns_paginated_list_with_annotations(self):
+        """Returns paginated list with annotations."""
         self.authenticate(self.customer)
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(set(response.data), {"count", "next", "previous", "results"})
+        self.assertEqual(
+            set(response.data), {"count", "next", "previous", "results"}
+        )
         self.assertEqual(response.data["count"], 2)
 
         result = next(
@@ -66,6 +82,7 @@ class OfferListTests(BaseAPITestCase):
         )
 
     def test_filters_by_creator_id(self):
+        """Filters by creator id."""
         self.authenticate(self.customer)
         response = self.client.get(self.url, {"creator_id": self.business.id})
 
@@ -73,6 +90,7 @@ class OfferListTests(BaseAPITestCase):
         self.assertEqual(response.data["results"][0]["id"], self.offer.id)
 
     def test_filters_by_min_price(self):
+        """Filters by min price."""
         self.authenticate(self.customer)
         response = self.client.get(self.url, {"min_price": 100})
 
@@ -80,6 +98,7 @@ class OfferListTests(BaseAPITestCase):
         self.assertEqual(response.data["results"][0]["id"], self.offer.id)
 
     def test_filters_by_max_delivery_time(self):
+        """Filters by max delivery time."""
         self.authenticate(self.customer)
         response = self.client.get(self.url, {"max_delivery_time": 4})
 
@@ -87,6 +106,7 @@ class OfferListTests(BaseAPITestCase):
         self.assertEqual(response.data["results"][0]["id"], self.other_offer.id)
 
     def test_search_matches_title(self):
+        """Search matches title."""
         self.authenticate(self.customer)
         response = self.client.get(self.url, {"search": "Logo"})
 
@@ -94,6 +114,7 @@ class OfferListTests(BaseAPITestCase):
         self.assertEqual(response.data["results"][0]["id"], self.other_offer.id)
 
     def test_ordering_by_min_price(self):
+        """Ordering by min_price sorts ascending."""
         self.authenticate(self.customer)
         response = self.client.get(self.url, {"ordering": "min_price"})
 
@@ -101,6 +122,7 @@ class OfferListTests(BaseAPITestCase):
         self.assertEqual(prices, sorted(prices))
 
     def test_page_size_query_param(self):
+        """The page_size query parameter limits the page length."""
         self.authenticate(self.customer)
         response = self.client.get(self.url, {"page_size": 1})
 
@@ -109,9 +131,12 @@ class OfferListTests(BaseAPITestCase):
 
 
 class OfferCreateTests(BaseAPITestCase):
+    """POST /api/offers/."""
+
     url = reverse_lazy("offer-list")
 
     def setUp(self):
+        """Create the users and offers the test methods work on."""
         self.business = create_user("biz", User.RoleChoices.BUSINESS)
         self.customer = create_user("cust", User.RoleChoices.CUSTOMER)
         self.payload = {
@@ -126,10 +151,12 @@ class OfferCreateTests(BaseAPITestCase):
         }
 
     def test_requires_authentication(self):
+        """Requires authentication."""
         response = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_business_user_can_create(self):
+        """A business user can create an offer."""
         self.authenticate(self.business)
         response = self.client.post(self.url, self.payload, format="json")
 
@@ -150,11 +177,13 @@ class OfferCreateTests(BaseAPITestCase):
         self.assertEqual(Offer.objects.get(pk=response.data["id"]).user, self.business)
 
     def test_customer_user_is_forbidden(self):
+        """Customer user is forbidden."""
         self.authenticate(self.customer)
         response = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_rejects_incomplete_details(self):
+        """Rejects incomplete details."""
         self.authenticate(self.business)
         payload = {**self.payload, "details": self.payload["details"][:2]}
         response = self.client.post(self.url, payload, format="json")
@@ -163,6 +192,7 @@ class OfferCreateTests(BaseAPITestCase):
         self.assertIn("details", response.data)
 
     def test_rejects_duplicate_offer_types(self):
+        """Rejects duplicate offer types."""
         self.authenticate(self.business)
         payload = {
             **self.payload,
@@ -177,7 +207,10 @@ class OfferCreateTests(BaseAPITestCase):
 
 
 class OfferDetailEndpointTests(BaseAPITestCase):
+    """GET, PATCH and DELETE /api/offers/<id>/."""
+
     def setUp(self):
+        """Create the users and offers the test methods work on."""
         self.business = create_user("biz", User.RoleChoices.BUSINESS)
         self.other_business = create_user("biz2", User.RoleChoices.BUSINESS)
         self.customer = create_user("cust", User.RoleChoices.CUSTOMER)
@@ -185,10 +218,12 @@ class OfferDetailEndpointTests(BaseAPITestCase):
         self.url = reverse("offer-detail", args=[self.offer.id])
 
     def test_retrieve_requires_authentication(self):
+        """Retrieve requires authentication."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_retrieve_returns_detail_links(self):
+        """Retrieve returns detail links."""
         self.authenticate(self.customer)
         response = self.client.get(self.url)
 
@@ -207,11 +242,13 @@ class OfferDetailEndpointTests(BaseAPITestCase):
         )
 
     def test_retrieve_unknown_offer_returns_404(self):
+        """Retrieve unknown offer returns 404."""
         self.authenticate(self.customer)
         response = self.client.get(reverse("offer-detail", args=[9999]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_owner_can_patch_single_detail(self):
+        """Owner can patch single detail."""
         self.authenticate(self.business)
         basic = self.offer.details.get(offer_type="basic")
 
@@ -234,16 +271,19 @@ class OfferDetailEndpointTests(BaseAPITestCase):
         self.assertEqual(self.offer.details.count(), 3)
 
     def test_other_business_user_cannot_patch(self):
+        """Other business user cannot patch."""
         self.authenticate(self.other_business)
         response = self.client.patch(self.url, {"title": "Hijacked"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_customer_cannot_patch(self):
+        """Customer cannot patch."""
         self.authenticate(self.customer)
         response = self.client.patch(self.url, {"title": "Hijacked"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_owner_can_delete(self):
+        """Owner can delete."""
         self.authenticate(self.business)
         response = self.client.delete(self.url)
 
@@ -251,23 +291,29 @@ class OfferDetailEndpointTests(BaseAPITestCase):
         self.assertFalse(Offer.objects.filter(pk=self.offer.id).exists())
 
     def test_other_business_user_cannot_delete(self):
+        """Other business user cannot delete."""
         self.authenticate(self.other_business)
         response = self.client.delete(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class OfferDetailResourceTests(BaseAPITestCase):
+    """GET /api/offerdetails/<id>/."""
+
     def setUp(self):
+        """Create the users and offers the test methods work on."""
         self.business = create_user("biz", User.RoleChoices.BUSINESS)
         self.customer = create_user("cust", User.RoleChoices.CUSTOMER)
         self.detail = create_offer(self.business).details.get(offer_type="basic")
         self.url = reverse("offerdetail-detail", args=[self.detail.id])
 
     def test_requires_authentication(self):
+        """Requires authentication."""
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_returns_full_detail(self):
+        """Returns the package tier with all of its fields."""
         self.authenticate(self.customer)
         response = self.client.get(self.url)
 
@@ -286,6 +332,7 @@ class OfferDetailResourceTests(BaseAPITestCase):
         )
 
     def test_unknown_detail_returns_404(self):
+        """Unknown detail returns 404."""
         self.authenticate(self.customer)
         response = self.client.get(reverse("offerdetail-detail", args=[9999]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

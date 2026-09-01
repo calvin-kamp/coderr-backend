@@ -1,3 +1,10 @@
+"""URL routes for the order endpoints.
+
+The router covers ``/api/orders/`` and ``/api/orders/<id>/``. The two count
+routes are added by hand: they are aggregates, not a resource the router could
+derive from the view set.
+"""
+
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 

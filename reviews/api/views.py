@@ -1,3 +1,15 @@
+"""Views for the review endpoints.
+
+The whole resource is one view set. Its rules are expressed through two
+permission classes stacked on top of ``IsAuthenticated``: one decides who may
+write at all, the other who may touch an existing review. Reading stays open to
+every authenticated user, which is why both classes let the safe methods pass.
+
+Contents:
+  * ReviewViewSet -- /api/reviews/ and /api/reviews/<id>/. Customers create,
+                     the author edits and deletes, everyone logged in may read.
+"""
+
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.filters import OrderingFilter
@@ -11,6 +23,12 @@ from .serializers import ReviewSerializer, ReviewUpdateSerializer
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
+    """List, create, update and delete reviews.
+
+    Pagination is switched off because the response is a bare array, and PUT is
+    dropped from ``http_method_names`` because only a partial update is offered.
+    """
+
     queryset = Review.objects.select_related("business_user", "reviewer")
     permission_classes = [
         IsAuthenticated,
@@ -25,6 +43,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_serializer_class(self):
+        """Use the restricted serializer for updates, the full one otherwise."""
         if self.action == "partial_update":
             return ReviewUpdateSerializer
 
