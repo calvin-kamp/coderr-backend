@@ -49,7 +49,7 @@ cd coderr
 
 ```powershell
 python -m venv .venv
-env\Scripts\Activate.ps1
+.venv\Scripts\Activate.ps1
 ```
 
 If PowerShell refuses to run the activation script, allow it for the current
@@ -63,14 +63,14 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ```bat
 python -m venv .venv
-env\Scripts\activate.bat
+.venv\Scripts\activate.bat
 ```
 
 **macOS / Linux**
 
 ```bash
 python3 -m venv .venv
-source env/bin/activate
+source .venv/bin/activate
 ```
 
 The prompt now starts with `(env)`. Everything below assumes the environment is
