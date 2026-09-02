@@ -4,14 +4,18 @@ Two rules recur in this module:
   * Serializer per action: ``get_serializer_class`` picks the serializer that
     matches the response shape of the route -- the list carries the owner block,
     the retrieve route does not, and writes exchange the full tier objects.
+  * Permissions per action: the list is the only route open to visitors without
+    an account, so ``get_permissions`` swaps in ``AllowAny`` for it while every
+    other action stays behind ``IsAuthenticated``.
   * Annotated queryset: ``min_price`` and ``min_delivery_time`` are computed by
     the database instead of in Python, because the list route also has to filter
     and sort by them.
 
 Contents:
-  * OfferViewSet            -- /api/offers/ and /api/offers/<id>/. Anyone logged
-                               in may read, business users may create, only the
-                               owner may edit or delete.
+  * OfferViewSet            -- /api/offers/ and /api/offers/<id>/. The list is
+                               public, reading a single offer needs a token,
+                               business users may create, only the owner may edit
+                               or delete.
   * OfferDetailRetrieveView -- /api/offerdetails/<id>/, read-only single tier.
 """
 
@@ -19,7 +23,7 @@ from django.db.models import Min
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, viewsets
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from offers.models import Offer, OfferDetail
 
@@ -65,6 +69,18 @@ class OfferViewSet(viewsets.ModelViewSet):
                 min_delivery_time=Min("details__delivery_time_in_days"),
             )
         )
+
+    def get_permissions(self):
+        """Return the permission classes for the current action.
+
+        The offer list is the entry point for visitors who are not signed in, so
+        it drops the project-wide ``IsAuthenticated`` default. Every other
+        action, including reading a single offer, keeps it.
+        """
+        if self.action == "list":
+            return [AllowAny()]
+
+        return super().get_permissions()
 
     def get_serializer_class(self):
         """Pick the serializer that matches the response shape of the action."""

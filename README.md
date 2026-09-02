@@ -207,8 +207,9 @@ Authorization: Token 83bf098723b08f7b23429u0fv8274
 
 The token does not expire. Signing in again returns the same key.
 
-Three endpoints are public: `POST /api/registration/`, `POST /api/login/` and
-`GET /api/base-info/`. Everything else answers `401` without a valid token.
+Four endpoints are public: `POST /api/registration/`, `POST /api/login/`,
+`GET /api/offers/` and `GET /api/base-info/`. Everything else answers `401`
+without a valid token, including `GET /api/offers/{id}/`.
 
 ---
 
@@ -333,7 +334,7 @@ An offer always has exactly three package tiers: `basic`, `standard` and
 
 #### `GET /api/offers/`
 
-Paginated list. Each entry carries `min_price` and `min_delivery_time` derived
+Paginated list. Public, no token required. Each entry carries `min_price` and `min_delivery_time` derived
 from its tiers, links to those tiers, and a `user_details` block.
 
 Query parameters:
@@ -451,8 +452,8 @@ object in the payload has to carry it; the tier keeps its id.
 }
 ```
 
-The response always contains all three tiers, not only the changed one. `403`
-for anyone but the owner.
+The response always contains all three tiers, not only the changed one. `400`
+when a tier omits its `offer_type`, `403` for anyone but the owner.
 
 #### `DELETE /api/offers/{id}/`
 

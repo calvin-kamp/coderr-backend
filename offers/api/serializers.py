@@ -122,10 +122,18 @@ class OfferCreateUpdateSerializer(serializers.ModelSerializer):
     def validate_details(self, value):
         """Check the tier list for duplicates and, on create, for completeness.
 
+        Every tier has to name its ``offer_type``, because that is what
+        ``update`` matches an incoming tier against an existing row by. The model
+        field has a default, so DRF would otherwise leave the key out of
+        ``validated_data`` entirely.
+
         ``self.instance is None`` distinguishes the two cases: a new offer needs
         all three tiers, while an update may carry a single one.
         """
-        types = [detail.get("offer_type") for detail in value]
+        if any(detail.get("offer_type") is None for detail in value):
+            raise serializers.ValidationError("Each detail requires an offer_type.")
+
+        types = [detail["offer_type"] for detail in value]
 
         if len(types) != len(set(types)):
             raise serializers.ValidationError("Each offer_type may only appear once.")

@@ -28,7 +28,9 @@ def detail_payload(offer_type, price, delivery_time, revisions=1):
     }
 
 
-def create_offer(user, title="Grafikdesign-Paket", prices=(100, 200, 500), days=(5, 7, 10)):
+def create_offer(
+    user, title="Grafikdesign-Paket", prices=(100, 200, 500), days=(5, 7, 10)
+):
     """Create an offer with its three package tiers directly in the database."""
     offer = Offer.objects.create(user=user, title=title, description="Beschreibung")
     for offer_type, price, day in zip(("basic", "standard", "premium"), prices, days):
@@ -59,15 +61,25 @@ class OfferListTests(BaseAPITestCase):
             self.other_business, "Logo Paket", prices=(50, 60, 70), days=(2, 3, 4)
         )
 
+    def test_list_is_public(self):
+        """The list answers without authentication."""
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 2)
+
+    def test_invalid_filter_value_returns_400(self):
+        """A non-numeric filter value is rejected."""
+        response = self.client.get(self.url, {"max_delivery_time": "test"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_returns_paginated_list_with_annotations(self):
         """Returns paginated list with annotations."""
         self.authenticate(self.customer)
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            set(response.data), {"count", "next", "previous", "results"}
-        )
+        self.assertEqual(set(response.data), {"count", "next", "previous", "results"})
         self.assertEqual(response.data["count"], 2)
 
         result = next(
@@ -269,6 +281,28 @@ class OfferDetailEndpointTests(BaseAPITestCase):
         self.assertEqual(basic.price, 120)
         self.assertEqual(basic.delivery_time_in_days, 6)
         self.assertEqual(self.offer.details.count(), 3)
+
+    def test_patch_detail_without_offer_type_returns_400(self):
+        """A tier without offer_type is rejected."""
+        self.authenticate(self.business)
+        response = self.client.patch(
+            self.url,
+            {
+                "details": [
+                    {
+                        "title": "Basic",
+                        "revisions": 1,
+                        "delivery_time_in_days": 2,
+                        "price": 10,
+                        "features": ["A"],
+                    }
+                ]
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("details", response.data)
 
     def test_other_business_user_cannot_patch(self):
         """Other business user cannot patch."""
