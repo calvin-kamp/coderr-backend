@@ -48,7 +48,7 @@ cd coderr
 **Windows (PowerShell)**
 
 ```powershell
-python -m venv env
+python -m venv .venv
 env\Scripts\Activate.ps1
 ```
 
@@ -62,14 +62,14 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 **Windows (Command Prompt)**
 
 ```bat
-python -m venv env
+python -m venv .venv
 env\Scripts\activate.bat
 ```
 
 **macOS / Linux**
 
 ```bash
-python3 -m venv env
+python3 -m venv .venv
 source env/bin/activate
 ```
 
